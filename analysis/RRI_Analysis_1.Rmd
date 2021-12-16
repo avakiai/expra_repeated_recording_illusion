@@ -35,7 +35,7 @@ for (fileN in unique(as.character(data_breakdown$ID))) {
                     add_column(this_demogdata, .before = 1)
   
   # dependent variables
-  this_maindata <- cbind(this_data$questions, this_data$ratings_slider.response, this_data$open_text_response.text, this_data$eval_slider.response)[which(this_data$questions!=""),]
+  this_maindata <- cbind(this_data$ratings_loop.thisIndex, this_data$questions, this_data$ratings_slider.response, this_data$open_text_response.text, this_data$eval_slider.response)[which(this_data$questions!=""),]
   this_knew <- this_data$knew_slider.response[which(this_data$knew_slider.response!="")] 
   # independent variables
   this_struct <- cbind(this_data$condition, this_data$genre, this_data$order, this_data$probe)[which(this_data$condition!=""),]
@@ -48,7 +48,7 @@ for (fileN in unique(as.character(data_breakdown$ID))) {
     this_maindata) %>% as.data.frame() 
   
   this_data3 <- this_data2 %>%
-    setNames(c("condition", "genre", "prime_order", "probe", "question", "rating", "open_text", "final_eval")) %>%
+    setNames(c("condition", "genre", "prime_order", "probe", "question_n" ,"question", "rating", "open_text", "final_eval")) %>%
     mutate(knew_piece = rep(this_knew, each = nrow(this_data2)/2)) %>%
     mutate(subj = this_demogdata$`this_data$participant`, .before = 1) %>%
     mutate(EXPRA = this_demogdata$`this_data$EXPRA.code..only.for.EXPRA.students.`,
@@ -78,5 +78,11 @@ for (fileN in unique(as.character(data_breakdown$ID))) {
   data <- rbind(data, this_data4)
   demog_data <- rbind(demog_data, this_musicdata)
 }
+```
+
+
+Let's take a look!
+```{r}
+data
 ```
 
