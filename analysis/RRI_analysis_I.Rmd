@@ -1,8 +1,0 @@
----
-title: "RRI: Analysis, I"
-output: html_notebook
----
-
-This script aims to:
-1. wrangle raw data into data.frames for analysis
-2. perform summary statistics
