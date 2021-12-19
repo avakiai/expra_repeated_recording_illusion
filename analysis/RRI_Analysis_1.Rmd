@@ -1,6 +1,8 @@
 ---
-title: "RR1: Wrangle & Analysis, I"
-output: html_notebook
+title: 'RR1: Wrangle & Analysis, I'
+output:
+  html_document:
+    df_print: paged
 ---
 
 Set working directory to file path. 
