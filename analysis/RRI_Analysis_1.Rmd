@@ -1,78 +1,167 @@
 ---
-title: 'RR1: Wrangle & Analysis, I'
+title: 'Repeated Recording Illusion: Analysis I'
+author: 'Ava Kiai & EXPRA Group 6'
 output:
   html_document:
     df_print: paged
 ---
 
-Set working directory to file path. 
+## Roadmap
+Alright, so in this file we're going to begin our analysis of the Repeated Recording Illusion Experiment.
 
+We'll perform the following steps:
+1. Set working directory to file path. (Recall, `Session > Set Working Directory > To Source File Location`.) This script should be sitting in a folder structure as follows:
+
+RRI_analysis/analysis/RRI_analysis_I.Rmd
+
+In the same `/analysis` folder there should be a file called `funs.R`, which you will need to access two helper functions, `filter_data()` and `wrangle_data()`. 
+
+2. Wrangling our data and save it so we can reference it later without having to re-load all raw data again.
+
+**Interim Assignment**: At this stage in the pipeline, you should already have quite a bit of data and a cleaned-up .csv file. You may begin classifying participants into the "yes" or "no" camp; determining whether each participants appears to believe the recordings were different or if they detected that they were the same, respectively. 
+
+Use the criteria you set out in the Preregistration. This does not need to be done in R Markdown, but you should have a well-organized file, such as an Excel sheet, with one row per observation (open-text response). 
+
+One idea would be to copy the participant ID, the prompt question, and the response into a fresh Excel sheet or Google sheet, and to create new columns for each step in your text analysis pipeline. Then, for each observation, you may record your decision under the appropriate column on the same row as the observation.
+
+Think about using a clear format that you can use to compare your results with your classmates. Consider what platform you may want to use to check your results against those of others, and discuss them? (Tip: for evolving documents such as these, sending them as discrete files in Slack is perhaps not optimal, as you will then have to struggle to indicate and keep track of which are the new or up to date versions.)
+
+Your final classification will be due latest at the start of class on **Week 12/Jan. 27th**.
+
+
+3. Aggregate and plot data to respond to our Hypothesis 3: Did WM Load, Explicit Information, Genre have an influence on liking ratings for each rating individually?
+
+4. Perform a linear regression to response to Hypothesis 3. (Coming soon!)
+
+### 1. Setup
 Load packages and collect info on files:
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
+options(dplyr.summarise.inform = FALSE)
 # set path to current directory
 data_path <- c('../../RRI_data_materials/data')
 source('funs.R') # two functions you need in this script
 
 all_data <- list.files(data_path, pattern = ".csv") # all csv files
-participant_IDs <- unlist(lapply(strsplit(all_data,"_"), '[[', 1)) # extract participant ID
-true_participants <- !stringr::str_starts(participant_IDs, "00") # remove those IDs that start with 00, such as 001 or 002
 
-true_data <- all_data[true_participants]
-filtered_data_files <- filter_data(true_data)
+filtered_data_files <- filter_data(all_data) # filter for complete & true data sets
+
+print(paste("N =", length(filtered_data_files)))
 ```
 
 
-Wrangle data
-```{r}
+### 2. Wrangle data
+The wrangle_data() function cleans up the raw data into a single dataframe for the main data, and a dataframe for demographic information (this will be useful for calculating an index of musical ability using the Goldsmiths Musical Sophistical Index we implemented at the start of the experiment).
+
+```{r message=FALSE, warning=FALSE}
 wrangled_data <- wrangle_data(data_path, filtered_data_files)
 
-data <- wrangled_data$data
-demographics <- wrangled_data$demgraphics
+data <- wrangled_data$data %>% mutate(question_n = factor(question_n, labels = c("Interpretation","Timing/Rhythm","Tone Quality","Expressiveness"))) # make a better label for the question index
 
+demographics <- wrangled_data$demgraphics
+```
+Take a moment to familiarize yourself with the structure of the data.
+
+Save the data as-is for easier reference. This snippet of code will also create a folder, `\data` in the main `RRI_analysis` folder, if none already exists. 
+```{r}
+data_save <- c("../data")
+dir.create(data_save, showWarnings = FALSE)
+write.csv(data, file.path(data_save, "data.csv"), row.names = FALSE)
+write.csv(demographics, file.path(data_save, "demographic_data.csv"), row.names = FALSE)
 ```
 
+Now, in the future, you can simple load the `data.csv` file for analysis.
+
+### 3. How were ratings modulated by working memory load, levels of explicit information, and genre?
 
 Let's take a look!
-```{r message=FALSE, warning=FALSE}
-rating_data <- data[!is.na(data$rating),] %>% mutate(rating = as.numeric(rating))
 
+First, let's reduce the data down to only what we need for this section. We only need those rows
+of data where the ratings column is not empty (not NA):
+```{r message=FALSE, warning=FALSE}
+rating_data <- data[!is.na(data$rating),]
+
+# ratings per wm group, level of explicit information, and question
 rating_summary <- rating_data %>% group_by(wm, condition, question_n) %>% summarise(mean_rating = mean(rating),
                                                                 sd_rating = sd(rating),
                                                                 se_rating = sd_rating/sqrt(nrow(rating_data)))
 
+# average ratings over questions
 ratings_mu_summary <- rating_data %>% group_by(wm, condition) %>% summarise(mean_rating = mean(rating),
                                                                 sd_rating = sd(rating),
                                                                 se_rating = sd_rating/sqrt(nrow(rating_data)))
-
-# mean, se ratings ~ prestige level * working memory * question
-ggplot(rating_summary) + 
- geom_point(aes(question_n, mean_rating, color = condition)) +
- geom_errorbar(aes(x = question_n, y = mean_rating, ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition)) +
- geom_line(aes(question_n, mean_rating, group = condition, color = condition)) +
-  facet_grid(. ~ wm)
-
-# mean, se ratings ~ prestige level * working memory 
-ggplot(ratings_mu_summary) + 
- geom_point(aes(1, mean_rating, color = condition)) +
- geom_errorbar(aes(x = 1, y = mean_rating, ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition)) +
- #geom_line(aes(question_n, mean_rating, group = condition, color = condition)) +
-  facet_grid(. ~ wm)
-
 ```
 
+Now let's plot the raw ratings:
+
+In this section, I'll also comment to indicate what different aspects of this code are doing. Then, you can adapt portions of it to make your figures consistent in terms of layout, labelling, color, and aesthetics.
 ```{r message=FALSE, warning=FALSE}
-genre_summary <- rating_data %>% group_by(wm, condition, genre) %>% summarise(mean_rating = mean(rating),
+# mean, se ratings ~ explicit information level * working memory * question
+ggplot(rating_summary) + 
+  geom_point(aes(question_n, mean_rating, color = condition)) + # adds a point for each obs (row)
+  geom_errorbar(aes(x = question_n, y = mean_rating, # add errorbars, given specs on ymin/ymax
+                   ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+                width = 0.2) + # controls width of the lateral bar
+  # line connects points based on value in "group" (if group == 1, there's only one level)
+  geom_line(aes(question_n, mean_rating, group = condition, color = condition)) + 
+  # "facets" split the graph based on the variables given, so here it splits based on levels of "wm"
+  facet_grid(. ~ wm, labeller = as_labeller(c(`0` = "no load", `1` = "wm load"))) +
+                    # to change the label in the strip on the top, assign to the original value a new str   
+  # above, we have told R to assign colors based on the variable "condition"
+  # here, we tell it what color palette to use, and what to name the legend
+  scale_color_brewer(palette = "Dark2", name = "explicit information") +
+  # use a clean, white theme
+  theme_classic() +
+  # theme adjustments: angle the x-axis tick labels so that they do not overlap
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  # change y-axis title and remove x-axis title
+  labs(y = "liking ratings", x = NULL)
+
+# Challenge! Write here the code to save this figure as a png.
+```
+
+Now let's plot the mean ratings:
+```{r message=FALSE, warning=FALSE}
+# mean, se ratings ~ explicit information level * working memory 
+ggplot(ratings_mu_summary) + 
+  geom_point(aes(1, mean_rating, color = condition)) +
+  geom_errorbar(aes(x = 1, y = mean_rating, 
+                    ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+                width = 0.02) +
+  scale_x_discrete(name = "aggregated scales") +
+  facet_grid(. ~ wm, labeller = as_labeller(c(`0` = "no load", `1` = "wm load"))) +
+  scale_color_brewer(palette = "Dark2", name = "explicit information") +
+  theme_classic() +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  labs(y = "liking ratings", x = NULL)
+
+```
+Now let's add genre to the mix: 
+```{r message=FALSE, warning=FALSE}
+genre_summary <- rating_data %>% group_by(wm, condition, genre, question_n) %>% 
+                                                      summarise(mean_rating = mean(rating),
                                                                 sd_rating = sd(rating),
                                                                 se_rating = sd_rating/sqrt(nrow(rating_data)))
-
-
-# mean, se ratings ~ prestige level * working memory * question
-ggplot(genre_summary) + 
- geom_point(aes(genre, mean_rating, color = condition)) +
- #geom_col(aes(genre, scale(mean_rating), color = condition, fill = condition), alpha = 0.7, position = position_dodge()) + 
- geom_errorbar(aes(x = genre, y = mean_rating, ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition)) +
- geom_line(aes(genre, mean_rating, group = condition, color = condition)) +
-  facet_grid(. ~ wm)
 ```
+
+
+```{r message=FALSE, warning=FALSE}
+# mean, se ratings ~ genre * explicit information level * working memory * question
+ggplot(genre_summary) + 
+  geom_point(aes(question_n, mean_rating, color = condition)) + 
+  geom_errorbar(aes(x = question_n, y = mean_rating, 
+                   ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+                width = 0.2) + 
+  geom_line(aes(question_n, mean_rating, group = condition, color = condition)) + 
+  facet_wrap(genre ~ wm, labeller = 
+               as_labeller(c(`0` = "no load", `1` = "wm load", 'rock' = "rock", 'classical' = "classical"))) +
+  scale_color_brewer(palette = "Dark2", name = "explicit information") +
+  theme_classic() +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  labs(y = "liking ratings", x = NULL)
+```
+
+### 4. Model 
+
+Coming soon!
 
