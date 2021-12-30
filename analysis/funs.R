@@ -99,15 +99,19 @@ wrangle_data <- function(data_path, file_names) {
       this_data4 <- this_data3 %>% add_column(wm_data.paste, .after = "wm") 
     }
     
-    fctrs <- c("ID","condition","genre","prime_order","question","sex","question_n")
+    fctrs <- c("condition","genre","prime_order","question","sex","question_n")
     numcs <- c("age","confidence","rating","final_eval","knew_piece","wm")
     data <- rbind(data, this_data4) %>% mutate(across(all_of(fctrs), as.factor),
                                                across(all_of(numcs), as.numeric)) 
-    #data <- data %>% mutate(question_n = factor(question_n, labels = c("Interpretation","Timing/Rhythm","Tone Quality","Expressiveness")))
-    fctrs2 <- c("ID","EXPRA_code","sex","scale","question_en","question_de","resp_scale")
+
+    fctrs2 <- c("EXPRA_code","sex","scale","question_en","question_de","resp_scale")
     numcs2 <- c("response","q_n","age")  
     demog_data <- rbind(demog_data, this_musicdata) %>% mutate(across(all_of(fctrs2), as.factor),
                                                                across(all_of(numcs2), as.numeric))
   }  
+  
+  data <- data %>% mutate(ID = as.factor(ID))
+  demog_data <- demog_data %>% mutate(ID = as.factor(ID))
+  
   return(list(data = data, demgraphics = demog_data))
 }
