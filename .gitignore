@@ -4,4 +4,6 @@ analysis/RRI_Analysis_I-AK.Rmd
 analysis/funs.R
 analysis/pca.R
 analysis/prepare_data.R
+analysis/.DS_Store
+analysis/.Rhistory
 .DS_Store
