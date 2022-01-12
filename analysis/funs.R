@@ -7,39 +7,58 @@ require(tidyverse)
     true_data <- all_data[true_participants]
     
     file_names <- matrix(nrow = 0, ncol = 1)
+    participant_breakdown <- matrix(nrow = 0, ncol = 5)
     for (file in true_data) {
-      this_data <- read.csv(file.path(data_path, file))
-      # this_data <- tryCatch({
-      #     read.csv(file.path(data_path, file), header = T, sep=",")
-      #     }, error = function(err) {
-      #       print(paste("Empty or error on file:", file, " with error: ", err))
-      #       next
-      #     })
+      # print(file)
+      skip_file <- FALSE
+      tryCatch({this_data <- read.csv(file.path(data_path, file), header = TRUE)},
+               error = function(err) {
+                 skip_file <- TRUE
+                 #print(paste("Error on file:", file," | Sys:", err))
+               })
       
+      if(skip_file) { next 
+      } else { 
       this_pb <- cbind(this_data$condition[which(this_data$condition!="")], 
                        this_data$genre[which(this_data$genre!="")], 
                        this_data$order[which(this_data$order!="")])
       
+      wm <- this_data$wm_recall_response.text[which(this_data$wm_recall_response.text!="")]
       ratings <- this_data$ratings_slider.response[which(this_data$ratings_slider.response!="")]
       openbox <- this_data$open_text_response.text[which(this_data$open_text_response.text!="")]
       
       if ( is.null(this_pb) ) { # no data
+        #print(paste("No data for file:", file))
         next
         
       } else if ( nrow(this_pb) < 6 ) { # not all conditions seen
+        #print(paste("Incomplete data for file:", file))
         next
         
       } else if ( length(ratings) < (3*2*4) ) { # not all ratings given, N = levels of prime * genres * questions
+        #print(paste("Incomplete data for file:", file))
         next
         
       } else if ( length(openbox) < (3*2*2) ) { # not all open-text responses given, N = levels * genre * 2 boxes
+        #print(paste("Incomplete data for file:", file))
         next
         
-      } else { # data's fine!
+      } else { # data is fine!
+        if (is.null(wm)) {
+          this_pb <- cbind(this_pb, rep(0, nrow(this_pb)))
+        } else {
+          this_pb <- cbind(this_pb, rep(1, nrow(this_pb)))
+        }
+        this_pb <- cbind(rep(strsplit(file,"_")[[1]][1], nrow(this_pb)), this_pb)
+        participant_breakdown <- rbind(participant_breakdown, this_pb)
         file_names <- rbind(file_names, file)
       }
+      }
     }
-    return(file_names)
+    participant_breakdown <- participant_breakdown %>% as.data.frame() %>% setNames(c("ID", "condition", "genre", "order", "wm"))
+    
+    return(list(participant_breakdown = participant_breakdown, file_names = file_names))
+    #return(file_names)
 }
 
 wrangle_data <- function(data_path, file_names) {
@@ -47,6 +66,7 @@ wrangle_data <- function(data_path, file_names) {
   data <- data.frame()
   demog_data <- data.frame()
   for (file in file_names) {
+    print(file)
     this_data <- read.csv(file.path(data_path, file))
     
     # demographic and musical background data
@@ -99,15 +119,15 @@ wrangle_data <- function(data_path, file_names) {
       this_data4 <- this_data3 %>% add_column(wm_data.paste, .after = "wm") 
     }
     
-    fctrs <- c("condition","genre","prime_order","question","sex","question_n")
-    numcs <- c("age","confidence","rating","final_eval","knew_piece","wm")
-    data <- rbind(data, this_data4) %>% mutate(across(all_of(fctrs), as.factor),
-                                               across(all_of(numcs), as.numeric)) 
+    #fctrs <- c("condition","genre","prime_order","question","question_n")
+    #numcs <- c("age","sex","confidence","rating","final_eval","knew_piece","wm")
+    data <- rbind(data, this_data4) #%>% mutate(across(all_of(fctrs), as.factor),
+                                    #           across(all_of(numcs), as.numeric)) 
 
-    fctrs2 <- c("EXPRA_code","sex","scale","question_en","question_de","resp_scale")
-    numcs2 <- c("response","q_n","age")  
-    demog_data <- rbind(demog_data, this_musicdata) %>% mutate(across(all_of(fctrs2), as.factor),
-                                                               across(all_of(numcs2), as.numeric))
+    #fctrs2 <- c("EXPRA_code","scale","question_en","question_de","resp_scale")
+    #numcs2 <- c("response","q_n","age","sex")  
+    demog_data <- rbind(demog_data, this_musicdata) #%>% mutate(across(all_of(fctrs2), as.factor),
+                                    #                           across(all_of(numcs2), as.numeric))
   }  
   
   data <- data %>% mutate(ID = as.factor(ID))

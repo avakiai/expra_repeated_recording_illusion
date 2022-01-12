@@ -1,0 +1,29 @@
+---
+title: 'Repeated Recording Illusion: Analysis II'
+author: 'Ava Kiai & EXPRA Group 6'
+output: html_document
+---
+# Classification
+
+Now that we have complete data, you may begin classifying participants into the "yes" or "no" camp; determining whether each participants appears to believe the recordings were different or if they detected that they were the same, respectively. 
+
+Use the criteria you set out in the Preregistration. This does not need to be done in R Markdown, but you should have a well-organized file, such as an Excel sheet, with one row per observation (open-text response). 
+
+One idea would be to copy the participant ID, the prompt question, and the response into a fresh Excel sheet or Google sheet, and to create new columns for each step in your text analysis pipeline. Then, for each observation, you may record your decision under the appropriate column on the same row as the observation.
+
+Think about using a clear format that you can use to compare your results with your classmates. Consider what platform you may want to use to check your results against those of others, and discuss them? (Tip: for evolving documents such as these, sending them as discrete files in Slack is perhaps not optimal, as you will then have to struggle to indicate and keep track of which are the new or up to date versions.)
+
+Your final classification will be due latest at the start of class on **Week 12/Jan. 27th**.
+
+
+## Aim
+You may use this script to load in data to help with the classification, e.g.:
+- Examine open-text responses
+- Examine final evaluation questions
+- Add classification information to data file
+
+```{r}
+
+```
+
+

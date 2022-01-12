@@ -1,3 +1,7 @@
-data/data.csv
-data/demographic_data.csv
+analysis/linear_regression.nb.html
+analysis/linear_regression.Rmd
+analysis/RRI_Analysis_I-AK.Rmd
+analysis/funs.R
+analysis/pca.R
+analysis/prepare_data.R
 .DS_Store

@@ -5,102 +5,174 @@ output:
   html_document:
     df_print: paged
 ---
+# Liking Ratings
+
+## Aim
+Alright, so in this file we're going to begin our analysis of the Repeated Recording Illusion Experiment. We will visualize our data and answer our Hypothesis #3.
 
 ## Roadmap
-Alright, so in this file we're going to begin our analysis of the Repeated Recording Illusion Experiment.
-
 We'll perform the following steps:
 1. Set working directory to file path. (Recall, `Session > Set Working Directory > To Source File Location`.) This script should be sitting in a folder structure as follows:
 
-RRI_analysis/analysis/RRI_analysis_I.Rmd
+`RRI_analysis/analysis/RRI_analysis_I.Rmd`
 
-In the same `/analysis` folder there should be a file called `funs.R`, which you will need to access two helper functions, `filter_data()` and `wrangle_data()`. 
+2. Load our data.
 
-2. Wrangling our data and save it so we can reference it later without having to re-load all raw data again.
+3. Outlier Removal: Remove trials where participants in the working memory condition did not recall at least 5/8 characters correctly, 
+and remove participants who we cannot classify as yes/no in falling for the illusion.
 
-**Interim Assignment**: At this stage in the pipeline, you should already have quite a bit of data and a cleaned-up .csv file. You may begin classifying participants into the "yes" or "no" camp; determining whether each participants appears to believe the recordings were different or if they detected that they were the same, respectively. 
+4. Aggregate and plot data related to our Hypothesis 3: Did WM Load, Explicit Information, and Genre have an influence on liking ratings? Recall that we're going to aggregate the ratings by taking their mean.
 
-Use the criteria you set out in the Preregistration. This does not need to be done in R Markdown, but you should have a well-organized file, such as an Excel sheet, with one row per observation (open-text response). 
+4. Perform two ordinal logistic regressions (mixed-effects models) to respond to Hypothesis 3. Recall that our
+outcome variable is `mean liking` and our predictors are `working memory load`, `explicit information` and `position`, and that we will (first) run a separate model for each `genre`.
 
-One idea would be to copy the participant ID, the prompt question, and the response into a fresh Excel sheet or Google sheet, and to create new columns for each step in your text analysis pipeline. Then, for each observation, you may record your decision under the appropriate column on the same row as the observation.
+### 1. Set Working Directory
 
-Think about using a clear format that you can use to compare your results with your classmates. Consider what platform you may want to use to check your results against those of others, and discuss them? (Tip: for evolving documents such as these, sending them as discrete files in Slack is perhaps not optimal, as you will then have to struggle to indicate and keep track of which are the new or up to date versions.)
+### 2. Load Data
+Load packages and data. The file `data.csv` contains all data we will use. 
+(The file `demographic_data.csv` 
+contains demographic info such as the Goldsmiths Musical Sophistical Index we implemented at the start of the experiment. We can reference this when we need it later on.) 
 
-Your final classification will be due latest at the start of class on **Week 12/Jan. 27th**.
-
-
-3. Aggregate and plot data to respond to our Hypothesis 3: Did WM Load, Explicit Information, Genre have an influence on liking ratings for each rating individually?
-
-4. Perform a linear regression to response to Hypothesis 3. (Coming soon!)
-
-### 1. Setup
-Load packages and collect info on files:
 ```{r message=FALSE, warning=FALSE}
+# load tidyverse
 library(tidyverse)
+# if you don't already have the following packages, then run:
+#install.packages(c("sjPlot","ordinal","ggeffects"))
+library(sjPlot) # for generating a nice summary table
+library(ordinal) # for ordinal logistic regression
+library(ggeffects) # will also install and load package "emmmeans"
+
 options(dplyr.summarise.inform = FALSE)
+
 # set path to current directory
-data_path <- c('../../RRI_data_materials/data')
-source('funs.R') # two functions you need in this script
+data_path <- c('../data')
 
-all_data <- list.files(data_path, pattern = ".csv") # all csv files
+# load data
+data <- read.csv(file.path(data_path,'data.csv')) %>% 
+  mutate(condition = factor(condition, levels = c("baseline","low","high")))
 
-filtered_data_files <- filter_data(all_data) # filter for complete & true data sets
 
-print(paste("N =", length(filtered_data_files)))
+print(paste("N =", length(unique(data$ID))))
+head(data)
 ```
+How many participants do we have in total?
 
+### 3. Outlier Removal/Data Exclusion: Failed WM Trials & Unclassified 
+**Note!**: Once you have completed your classification of participants into 'yes/no' for falling for the illusion, we need to return to this point & exclude from our list those who could not be classified.
 
-### 2. Wrangle data
-The wrangle_data() function cleans up the raw data into a single dataframe for the main data, and a dataframe for demographic information (this will be useful for calculating an index of musical ability using the Goldsmiths Musical Sophistical Index we implemented at the start of the experiment).
-
-```{r message=FALSE, warning=FALSE}
-wrangled_data <- wrangle_data(data_path, filtered_data_files)
-
-data <- wrangled_data$data %>% mutate(question_n = factor(question_n, labels = c("Interpretation","Timing/Rhythm","Tone Quality","Expressiveness"))) # make a better label for the question index
-
-demographics <- wrangled_data$demgraphics
-```
-Take a moment to familiarize yourself with the structure of the data.
-
-Save the data as-is for easier reference. This snippet of code will also create a folder, `\data` in the main `RRI_analysis` folder, if none already exists. 
+First, let's remove those participants who did not get a number of character right in the working memory task.
+If you have an idea of how to do this, enter it here:
 ```{r}
-data_save <- c("../data")
-dir.create(data_save, showWarnings = FALSE)
-write.csv(data, file.path(data_save, "data.csv"), row.names = FALSE)
-write.csv(demographics, file.path(data_save, "demographic_data.csv"), row.names = FALSE)
+
 ```
 
-Now, in the future, you can simple load the `data.csv` file for analysis.
+Otherwise, here's one way of doing it: 
 
-### 3. How were ratings modulated by working memory load, levels of explicit information, and genre?
+**Decision Time:** What number should N (the bare minimum correct letters) be? Try a few and discuss the results.
+
+```{r}
+# minimum correct
+N = 4
+
+# add row number as column, so we can find the rows we want to keep later
+  data_row <- tibble::rowid_to_column(data, "rown")
+  
+  # get only rows of data from wm condition, and select only relevant columns
+  wm_1 <- data_row[!is.na(data_row$probe) & data_row$wm==1,] 
+  
+  # save the rest for later (adding back together the relevant rows)
+  wm_0 <- data_row[is.na(data_row$probe) | data_row$wm==0,] 
+
+# select only relevant columns for this task
+wm_1a <- wm_1 %>% dplyr::select(rown, ID, probe, wm_response)
+
+# change responses to upper case, so that we can compare them easily to the probe
+wm_1a$wm_response <- toupper(wm_1$wm_response) 
+
+# add a column of zeros to the right side of the dataframe, this is where you will store the answers to
+# whether or not someone got enough characters correct
+wm_1a$check <- 0
+
+# Here's a little function to separate responses and prompts into a string of unique characters. (Since
+# our probes never have repeating letters, we want to make sure we only "give points" for unique 
+# character matches.)
+uniqchars <- function(x) unique(strsplit(x, "")[[1]]) 
+
+# ----
+# For each probe, compare with the response, and set the check value to 1 if matches > N.
+# What cutoff N should we use?
+for (n in 1:nrow(wm_1a)) {
+  correct <- sum(uniqchars(wm_1a$probe[n]) %in% uniqchars(wm_1a$wm_response[n]))
+  if (correct > N-1) {
+    wm_1a$check[n] <- 1
+  }
+}
+
+# keep only rows where check was passed
+wm_1_keep <- wm_1[wm_1a$check==1,]
+
+print(paste("Percentage of correct trials:",round(sum(wm_1a$check==1)/nrow(wm_1) * 100,2),"%"))
+print(paste("That's",(nrow(wm_1)-nrow(wm_1_keep))/6,"trials we've removed."))
+
+# combine the two sets, kept rows from working memory condition, and the rest 
+data_or_rm <- rbind(wm_1_keep, wm_0) %>% arrange(rown)
+```
+
+Now, let's check how many participants and trials we have in each cell: 
+
+*Wait!* Before running this cell, think about what it's going to show you.
+```{r}
+data_check <- data_or_rm[!is.na(data_or_rm$condition),] %>% group_by(ID, prime_order) %>% slice(1) 
+
+data_check %>% as.matrix() %>% as.data.frame() %>% 
+  group_by(wm, genre, prime_order) %>% tally() %>% arrange(wm, genre, prime_order)
+```
+
+
+### 4. Plotting: How were ratings modulated by working memory load, levels of explicit information, and genre?
 
 Let's take a look!
 
-First, let's reduce the data down to only what we need for this section. We only need those rows
-of data where the ratings column is not empty (not NA):
-```{r message=FALSE, warning=FALSE}
-rating_data <- data[!is.na(data$rating),]
+First, let's reduce the data down to only what we need for this section. 
 
+We only need those rows of data where the ratings column is not empty (not NA). Complete the code to do this.
+
+```{r message=FALSE, warning=FALSE}
+rating_data <- data_or_rm[???,]
+```
+
+Summary statistics:
+Provide the code to generate summary statistics. Keep in mind that Likert data is ordinal data, so aspects like range and mode, in addition to the mean, can be important. Summarise the results in a table below.
+```{r}
+
+```
+
+Now let's get the mean ratings over participants for each question about liking, and overall. We
+want to get the `mean`, `standard deviation`, and `standard error of the mean`. 
+We need the standard deviation to get the standard error, but the standard error is often what 
+we plot (the "whiskers") around the mean.
+Fill in the corresponding code:
+```{r message=FALSE, warning=FALSE}
 # ratings per wm group, level of explicit information, and question
-rating_summary <- rating_data %>% group_by(wm, condition, question_n) %>% summarise(mean_rating = mean(rating),
-                                                                sd_rating = sd(rating),
+rating_summary <- rating_data %>% group_by(wm, condition, question_n) %>% summarise(mean_rating = ???,
+                                                                sd_rating = ???,
                                                                 se_rating = sd_rating/sqrt(nrow(rating_data)))
 
 # average ratings over questions
-ratings_mu_summary <- rating_data %>% group_by(wm, condition) %>% summarise(mean_rating = mean(rating),
-                                                                sd_rating = sd(rating),
-                                                                se_rating = sd_rating/sqrt(nrow(rating_data)))
+ratings_mu_summary <- rating_data %>% group_by(???) %>% summarise(???)
 ```
 
-Now let's plot the raw ratings:
+**Stop & Check**: Look at the two data frames we just generated. Do they look complete? Do we have the right information in the right format to continue?
 
-In this section, I'll also comment to indicate what different aspects of this code are doing. Then, you can adapt portions of it to make your figures consistent in terms of layout, labelling, color, and aesthetics.
+Now let's plot the all four of the ratings for our different conditions:
+
+Note: In this section, I'll also comment to indicate what different aspects of this code are doing. Then, you can adapt portions of it to make your figures consistent in terms of layout, labelling, color, and aesthetics.
 ```{r message=FALSE, warning=FALSE}
 # mean, se ratings ~ explicit information level * working memory * question
 ggplot(rating_summary) + 
   geom_point(aes(question_n, mean_rating, color = condition)) + # adds a point for each obs (row)
   geom_errorbar(aes(x = question_n, y = mean_rating, # add errorbars, given specs on ymin/ymax
-                   ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+                   ymin = mean_rating-???, ymax = mean_rating+???, color = condition),
                 width = 0.2) + # controls width of the lateral bar
   # line connects points based on value in "group" (if group == 1, there's only one level)
   geom_line(aes(question_n, mean_rating, group = condition, color = condition)) + 
@@ -117,33 +189,40 @@ ggplot(rating_summary) +
   # change y-axis title and remove x-axis title
   labs(y = "liking ratings", x = NULL)
 
-# Challenge! Write here the code to save this figure as a png.
+
 ```
+
+Challenge! In the above chunk, write here the code to save this figure as a png. You'll need to do this in 
+order to be able to save and later use your figure in your report, poster, and outreach efforts!
+
+**Stop & Reflect:** What do you see the above figure? Can you describe the results? Is there an interaction?
 
 Now let's plot the mean ratings:
 ```{r message=FALSE, warning=FALSE}
 # mean, se ratings ~ explicit information level * working memory 
-ggplot(ratings_mu_summary) + 
-  geom_point(aes(1, mean_rating, color = condition)) +
-  geom_errorbar(aes(x = 1, y = mean_rating, 
-                    ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+ggplot(ratings_mu_summary, mapping = aes(x = wm, y = mean_rating, color = condition)) + 
+  geom_point(size = 3) +
+  geom_line(aes(group = condition)) + 
+  geom_errorbar(aes(y = mean_rating, 
+                    ymin = ???, ymax = ???, color = condition),
                 width = 0.02) +
-  scale_x_discrete(name = "aggregated scales") +
-  facet_grid(. ~ wm, labeller = as_labeller(c(`0` = "no load", `1` = "wm load"))) +
+  scale_x_discrete(limits = c(0,1), labels = c("no load", "load"), name = "working memory") +
   scale_color_brewer(palette = "Dark2", name = "explicit information") +
   theme_classic() +
-  theme(axis.text.x=element_text(angle=45, hjust=1)) +
-  labs(y = "liking ratings", x = NULL)
+  labs(y = "mean liking ratings")
 
 ```
+
+**Stop & Reflect:** What do you see the above figure? Can you describe the results? Is there an interaction? What is missing from the figure?
+
 Now let's add genre to the mix: 
 ```{r message=FALSE, warning=FALSE}
-genre_summary <- rating_data %>% group_by(wm, condition, genre, question_n) %>% 
-                                                      summarise(mean_rating = mean(rating),
-                                                                sd_rating = sd(rating),
-                                                                se_rating = sd_rating/sqrt(nrow(rating_data)))
+genre_summary <- rating_data %>% group_by(wm, condition, genre, question_n) %>% summarise(???)
+
+genre_mu_summary <- rating_data %>% group_by(wm, condition, genre) %>% summarise(???)
 ```
 
+**Stop & Check:** Data look ready for plotting?
 
 ```{r message=FALSE, warning=FALSE}
 # mean, se ratings ~ genre * explicit information level * working memory * question
@@ -161,7 +240,208 @@ ggplot(genre_summary) +
   labs(y = "liking ratings", x = NULL)
 ```
 
-### 4. Model 
+**Stop & Reflect:** In your own words, summarize briefly what's going on in the figure.
 
-Coming soon!
+```{r message=FALSE, warning=FALSE}
+# mean, se ratings ~ explicit information level * working memory * genre
+ggplot(genre_mu_summary, mapping = aes(x = wm, y = mean_rating, color = condition)) + 
+  geom_point(size = 3) +
+  geom_line(aes(group = condition)) + 
+  geom_errorbar(aes(y = mean_rating, 
+                    ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
+                width = 0.02) +
+  scale_x_discrete(limits = c(0,1), labels = c("no load", "load"), name = "working memory") +
+  facet_grid(. ~ genre) +
+  scale_color_brewer(palette = "Dark2", name = "explicit information") +
+  theme_classic() +
+  labs(y = "mean liking ratings")
+```
+
+**Stop & Reflect:** Describe what we see in the above figure. Which of these figures best answered our question and best responds to our hypothesis #3? Based on the figure you've chosen, what is the answer to our question?
+
+### - Intermezzo - Transform Data for Ordinal Regression
+Ideally, we now just have to quantify what we already saw above, using statistical modelling. We have to first make sure our data is in the right format for modelling. 
+
+Since we are using Likert scale data, and we intend to aggregate it by taking a mean, it would not be wholly
+appropriate to do a linear regression. Why?
+
+Instead, we can use a class of logistic regression called ordinal regression, which specifically handles 
+ordinal data (where there is a bounded scale with ordered levels).
+
+We'll use a function from the package `ordinal` to model our data with both fixed and random effects.
+
+First, our ordinal variables should be coded as ordered variables (i.e. as ordered factors), and continuous variables coded as numeric.
+
+```{r}
+data_prep <- data_or_rm %>% 
+  mutate(ID = as.factor(ID),
+         wm = factor(wm),
+         # condition should already be a factor, ordered by "baseline", "low", "high"
+         # for consistency with the paper, 
+         # let's use a variable in place of `conditions` called `explicit information`:
+         exp_inf = factor(case_when(condition == "baseline" ~ 2,
+                             condition == "low" ~ 0,
+                             condition == "high" ~ 1)),
+         genre = factor(genre, levels = c("classical","rock")),
+         # let's add a variable for `repeated exposure`:
+         rep_exp = factor(case_when(condition == "baseline" ~ 0,
+                             prime_order == 1 & condition == "high" ~ 1,
+                             prime_order == 1 & condition == "low" ~ 2,
+                             prime_order == 2 & condition == "high" ~ 2,
+                             prime_order == 2 & condition == "low" ~ 1)))
+
+```
+
+Now, get the (rounded) mean ratings. (Although there's many more sophisticated and elegant ways of combining
+Likert scale data, the important thing for us is to have a single value that captures a participant's 
+overall liking in a way that makes sense on the original scale, i.e. is also an integer.)
+
+```{r}
+data_olm <- data_prep[!is.na(data_or_rm$rating),] %>% 
+  group_by(ID, condition, genre) %>% 
+  mutate(mean_rating = round(mean(rating)), .after = rating) %>% 
+  ungroup %>%
+  mutate(mean_rating = factor(mean_rating, ordered = TRUE),
+         rating = factor(rating, ordered = TRUE))
+
+str(data_olm) # view data structure
+```
+
+To get a sense of the breakdown of mean ratings for each group, and to give us an intuition about
+what the ordinal regression will tell us, let's visualize our data as counts:
+```{r}
+data_olm %>%
+ggplot(aes(x = exp_inf, fill = mean_rating)) +
+  geom_bar(position = "fill") +
+  facet_grid(genre ~ wm, 
+             labeller = as_labeller(c(`0` = "no load", `1` = "load",                                                   'rock' = "rock", 'classical' = "classical"))) +
+  scale_fill_brewer(palette = "Set2") + 
+  scale_x_discrete(labels = c("low","high","baseline")) + 
+  theme_classic()
+```
+
+
+## 5. Ordinal Logistic Regression
+
+Our outcome variable is the `mean_ratings` (a combination of four Likert scale liking ratings).
+Our predictors are `wm` (the effect of working memory load), `exp_inf` (the effect of levels of prestige suggestion), `rep_exp` (the effect of position).
+
+Fill in the model with these terms.
+
+Do we want to include any interactions? How do we do that?
+
+Recall that we want to analyze the classical and rock music conditions separately. How would we do this?
+```{r}
+data_class <- ???
+
+class_olmm <- clmm(mean_rating ~ ??? + (1|ID), 
+                   data = data_class) 
+
+# get the summary of the model
+summary(class_olmm)
+```
+Do you get an error message? What do you think it means?
+
+The interpretation of the model output is very similar to the interpretation of a vanilla 
+logistic regression. 
+
+The coefficient is a log odds value that refers to the difference in the outcome variable for a
+one unit increase in the predictor variable. 
+
+However! This is not just logistic regression but *ordinal*
+logistic regression. That means that the log odds is telling us the likelihood of observing a given level, e.g. 6, on the rating scale increases by the coef value *compared with* the likelihood of all levels
+beneath it, e.g. 1-5.
+
+So, looking first at the **Fixed Effects Coefficients**, take a shot at explaining in plain language 
+what these numbers mean. Do you notice something about the notation of the predictors?
+
+We are thus quite interested in looking at these coefficients on the odds scale, which is 
+rather more intuitive than log odds.
+
+Recall what we discussed in the demo experiment with the relationship between logistic coefficients (log odds) and the odds ratio. We want to gather the coeffcients and confidence intervals. What functions do we
+need for this?
+```{r}
+# confidence intervals
+???(class_olmm)
+
+# odds ratio & ci
+exp(cbind(OR = ???(class_olmm), ???(class_olmm)))
+```
+
+Now, what about these **threshold coefficients**? Each term is giving a sense of the likelihood of an 
+observed rating at or below that threshold, 
+e.g. the term `1|2` describes the likelihood of observing a 1 as opposed to a 2, 3, 4... 7; 
+the term `2|3` gives the likelihood of observing a 1 or 2 as opposed to a 3, 4, 5... 7... 
+
+Again, notice the spin that the ordinal aspect of the model brings into play: the odds are cumulative. 
+We can calculate the odds of observing a rating at a certain level (and below it) for each value of each predictor variable.
+
+Now, using `ggpredict()`, we can calculate the probabilities of getting each rating as follows. We can plot
+the outcome as well.
+```{r}
+# generate predictions from the model
+ggpredictions_class <- data.frame(ggpredict(class_olmm, terms = c("wm", "exp_inf"), type = "fe"))
+
+# clean up
+ggpredictions_class$x = factor(ggpredictions_class$x)
+colnames(ggpredictions_class)[c(1, 6,7)] <- c("wm", "mean_rating", "exp_inf")
+
+ggpredictions_class
+
+ggplot(ggpredictions_class, aes(x = mean_rating, y = predicted)) + 
+  geom_point(aes(color = wm), position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, color = wm), 
+                position = position_dodge(width = 0.5), width = 0.3) + 
+  facet_wrap(~ exp_inf, 
+               labeller = as_labeller(c(`0` = "baseline", `1` = "low", `2` = "high"))) +
+  #scale_fill_brewer(palette = "Set2") +
+  theme_classic() 
+
+ggplot(ggpredictions_class, aes(x = exp_inf, y = predicted, fill = mean_rating)) + 
+  geom_bar(position = "fill", stat = "identity") + 
+  facet_grid(. ~ wm, 
+             labeller = as_labeller(c(`0` = "no load", `1` = "load"))) +
+  scale_fill_brewer(palette = "Set2") + 
+  scale_x_discrete(labels = c("low","high","baseline")) + 
+  theme_classic() +
+  ggtitle("Probabilities of responses, full model")
+```
+
+Lastly, we can use `sjPlot` to wrangle the model output into a nice format:
+```{r}
+sjPlot::tab_model(class_olmm)
+```
+
+
+Now, repeat the above analysis with the rock music condition:
+```{r}
+
+
+```
+
+
+### - Some Theory - 
+If we are using a model with mean_rating as the outcome, and, say, only working memory and explicit information (no interaction here) as predictors, our model would be defined as follows: 
+$$logit[P(Y \leq j)] = \alpha_j - \beta_1 x_1 - \beta_2 x_2, j = 1 ... J-1$$
+We can read this as follows:
+"The log odds of the probability of getting a rating less than or equal to J (some level on the rating scale) is equal to the right-hand side portion of the equation, where 
+$\alpha_j$ is the threshold coefficient corresponding to the particular rating, 
+$\beta$ is the variable coefficient corresponding to a change in a predictor variable, and 
+$x_{1,2}$ is the value of the predictor variables." 
+
+$\beta$ is the value given to each coefficient corresponding to a variable, in log odds. 
+
+$\alpha$ value can be considered our intercept - it is the intercept for getting a rating of J or below, again in log odds.
+
+## 6. Writing Up the Results
+
+Here are some questions to guide you through a discussion of your results:
+
+1. How do you interpret the goodness-of-fit metrics? How well does the model perform? Think about the numbers but also the predicted ratings.
+
+2. Was there an effect of working memory load on mean liking? How about prestige suggestion (high versus low)? Was there an interaction? What's the response to your Hypothesis 3?
+
+3. Express the effect of the predictors as odd ratios, including CIs, and give a common-sense explanation. E.g. "Liking ratings provided after a high-prestige suggestion had X times (CI) greater odds of being higher than ratings provided after a low-prestige suggestion."
+
+...
 

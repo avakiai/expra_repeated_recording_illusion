@@ -1,0 +1,21 @@
+---
+title: 'Repeated Recording Illusion: Analysis III'
+author: 'Ava Kiai & EXPRA Group 6'
+output: html_document
+---
+# Effect of WM Load on Illusion 
+
+Once you have classified your participants into two groups, those who fell for the illusion and those who did not, you can begin analyzing this systematically. 
+
+Revisit Hypothesis 1 in your pre-registration and the analysis you set forth. 
+
+## Aim
+- Generate a contingency table of participants who fell/did not fall for the illusion, broken down by condition (`genre`,`working memory load`,`explicit information`)
+- Perform a Chi-square to determine if more people fell for the illusion under certain treatments
+- (Optionally) Perform a logistic regression to determine the likelihood of falling for the illusion, as a function of different variables
+
+```{r}
+
+```
+
+

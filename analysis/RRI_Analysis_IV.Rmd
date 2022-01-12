@@ -1,0 +1,21 @@
+---
+title: 'Repeated Recording Illusion: Analysis IV'
+author: 'Ava Kiai & EXPRA Group 6'
+output: html_document
+---
+# Demographic Data
+
+With this script, you may explore secondary analyses and investigate the demographic composition of your data set. 
+
+We used two scales from the [Goldsmiths Musical Sophistication Index](https://shiny.gold-msi.org/gmsi_toplevel/), Perceptual Abilites and Musical Training. You can familiarize yourself with the questions here. Consider whether you'd like to combine responses into an aggregate score, or treat them separeately. How might musicality affect a participant's performance in the experiment? These and other questions you are free to explore. 
+
+## Aim
+- Examine demographics (`sex`,`age`, and musical sophistication). 
+- (Optionally). Look at demographic influence on ratings or liklihood of falling for the illusion.
+- Examine whether familiarity with the piece could account for liking or illusion-suceptibility
+
+```{r}
+
+```
+
+
