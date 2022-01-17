@@ -7,4 +7,5 @@ analysis/prepare_data.R
 analysis/holder/
 analysis/.DS_Store
 analysis/.Rhistory
+data/data_orig
 .DS_Store

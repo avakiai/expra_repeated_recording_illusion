@@ -122,7 +122,7 @@ Now, let's check how many participants and trials we have in each cell:
 
 *Wait!* Before running this cell, think about what it's going to show you.
 ```{r}
-data_check <- data_or_rm[!is.na(data_or_rm$condition),] %>% group_by(ID, prime_order) %>% slice(1) 
+data_check <- data_or_rm[!is.na(data_or_rm$condition),] %>% group_by(ID, prime_order) %>% dplyr::slice(1) 
 
 data_check %>% as.matrix() %>% as.data.frame() %>% 
   group_by(wm, genre, prime_order) %>% tally() %>% arrange(wm, genre, prime_order)
@@ -138,7 +138,7 @@ First, let's reduce the data down to only what we need for this section.
 We only need those rows of data where the ratings column is not empty (not NA). Complete the code to do this.
 
 ```{r message=FALSE, warning=FALSE}
-rating_data <- data_or_rm[???,]
+rating_data <- data_or_rm[!is.na(data_or_rm$question_n),]
 ```
 
 Summary statistics:
@@ -154,12 +154,14 @@ we plot (the "whiskers") around the mean.
 Fill in the corresponding code:
 ```{r message=FALSE, warning=FALSE}
 # ratings per wm group, level of explicit information, and question
-rating_summary <- rating_data %>% group_by(wm, condition, question_n) %>% summarise(mean_rating = ???,
-                                                                sd_rating = ???,
+rating_summary <- rating_data %>% group_by(wm, condition, question_n) %>% summarise(mean_rating = mean(rating),
+                                                                sd_rating = sd(rating),
                                                                 se_rating = sd_rating/sqrt(nrow(rating_data)))
 
 # average ratings over questions
-ratings_mu_summary <- rating_data %>% group_by(???) %>% summarise(???)
+ratings_mu_summary <- rating_data %>% group_by(wm, condition) %>% summarise(mean_rating = mean(rating),
+                                                                sd_rating = sd(rating),
+                                                                se_rating = sd_rating/sqrt(nrow(rating_data)))
 ```
 
 **Stop & Check**: Look at the two data frames we just generated. Do they look complete? Do we have the right information in the right format to continue?
@@ -171,8 +173,8 @@ Note: In this section, I'll also comment to indicate what different aspects of t
 # mean, se ratings ~ explicit information level * working memory * question
 ggplot(rating_summary) + 
   geom_point(aes(question_n, mean_rating, color = condition)) + # adds a point for each obs (row)
-  geom_errorbar(aes(x = question_n, y = mean_rating, # add errorbars, given specs on ymin/ymax
-                   ymin = mean_rating-???, ymax = mean_rating+???, color = condition),
+  geom_errorbar(aes(x = question_n, y = mean_rating, # add error bars, given specs on ymin/ymax
+                   ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
                 width = 0.2) + # controls width of the lateral bar
   # line connects points based on value in "group" (if group == 1, there's only one level)
   geom_line(aes(question_n, mean_rating, group = condition, color = condition)) + 
@@ -204,7 +206,7 @@ ggplot(ratings_mu_summary, mapping = aes(x = wm, y = mean_rating, color = condit
   geom_point(size = 3) +
   geom_line(aes(group = condition)) + 
   geom_errorbar(aes(y = mean_rating, 
-                    ymin = ???, ymax = ???, color = condition),
+                    ymin = mean_rating-se_rating, ymax = mean_rating+se_rating, color = condition),
                 width = 0.02) +
   scale_x_discrete(limits = c(0,1), labels = c("no load", "load"), name = "working memory") +
   scale_color_brewer(palette = "Dark2", name = "explicit information") +
@@ -217,9 +219,17 @@ ggplot(ratings_mu_summary, mapping = aes(x = wm, y = mean_rating, color = condit
 
 Now let's add genre to the mix: 
 ```{r message=FALSE, warning=FALSE}
-genre_summary <- rating_data %>% group_by(wm, condition, genre, question_n) %>% summarise(???)
+genre_summary <- rating_data %>% group_by(wm, condition, genre, question_n) %>% summarise(mean_rating = mean(rating),
+                                                                sd_rating = sd(rating),
+                                                                se_rating = sd_rating/sqrt(nrow(rating_data)))
 
-genre_mu_summary <- rating_data %>% group_by(wm, condition, genre) %>% summarise(???)
+genre_mu_summary <- rating_data %>% group_by(wm, condition, genre) %>% summarise(mean_rating = mean(rating),
+                                                                sd_rating = sd(rating),
+                                                                se_rating = sd_rating/sqrt(nrow(rating_data)))
+
+genre_med_summary <- rating_data %>% group_by(wm, condition, genre) %>% summarise(median_rating = median(rating),
+                                                                  mad_rating = mad(rating),
+                                                                  iqr_rating = IQR(rating))
 ```
 
 **Stop & Check:** Data look ready for plotting?
@@ -300,7 +310,7 @@ overall liking in a way that makes sense on the original scale, i.e. is also an 
 data_olm <- data_prep[!is.na(data_or_rm$rating),] %>% 
   group_by(ID, condition, genre) %>% 
   mutate(mean_rating = round(mean(rating)), .after = rating) %>% 
-  ungroup %>%
+  ungroup() %>%
   mutate(mean_rating = factor(mean_rating, ordered = TRUE),
          rating = factor(rating, ordered = TRUE))
 
@@ -332,9 +342,9 @@ Do we want to include any interactions? How do we do that?
 
 Recall that we want to analyze the classical and rock music conditions separately. How would we do this?
 ```{r}
-data_class <- ???
+data_class <- subset(data_olm, data_olm$genre=="classical")
 
-class_olmm <- clmm(mean_rating ~ ??? + (1|ID), 
+class_olmm <- clmm(mean_rating ~ wm + exp_inf + wm:exp_inf + (1|ID), 
                    data = data_class) 
 
 # get the summary of the model
@@ -362,10 +372,10 @@ Recall what we discussed in the demo experiment with the relationship between lo
 need for this?
 ```{r}
 # confidence intervals
-???(class_olmm)
+confint(class_olmm)
 
 # odds ratio & ci
-exp(cbind(OR = ???(class_olmm), ???(class_olmm)))
+exp(cbind(OR = coef(class_olmm), confint(class_olmm)))
 ```
 
 Now, what about these **threshold coefficients**? Each term is giving a sense of the likelihood of an 
