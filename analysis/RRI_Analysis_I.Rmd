@@ -355,6 +355,9 @@ Do you get an error message? What do you think it means?
 The interpretation of the model output is very similar to the interpretation of a vanilla 
 logistic regression. 
 
+"Liking ratings given under the working memory load carry a lower l. of having a positive rating
+than rating given without wm load. The log odds of have a higher rating decreases by 0.33."
+
 The coefficient is a log odds value that refers to the difference in the outcome variable for a
 one unit increase in the predictor variable. 
 
@@ -370,6 +373,11 @@ rather more intuitive than log odds.
 
 Recall what we discussed in the demo experiment with the relationship between logistic coefficients (log odds) and the odds ratio. We want to gather the coeffcients and confidence intervals. What functions do we
 need for this?
+```{r}
+# emmeans::emmeans(object = class_olmm, pairwise ~ exp_inf | wm)
+```
+
+
 ```{r}
 # confidence intervals
 confint(class_olmm)
@@ -394,7 +402,7 @@ ggpredictions_class <- data.frame(ggpredict(class_olmm, terms = c("wm", "exp_inf
 
 # clean up
 ggpredictions_class$x = factor(ggpredictions_class$x)
-colnames(ggpredictions_class)[c(1, 6,7)] <- c("wm", "mean_rating", "exp_inf")
+colnames(ggpredictions_class)[c(1, 6, 7)] <- c("wm", "mean_rating", "exp_inf")
 
 ggpredictions_class
 
