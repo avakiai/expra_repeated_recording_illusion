@@ -2,7 +2,7 @@
 
 This is the repository hosting data, analysis scripts, and results for the class project of EXPRA Group 6 (Winter Semester 2021-2022) at Goethe University.
 
-This study is a replication plus an additional manipulation of A[nglada-Tort & Müllensiefen 2017](https://online.ucpress.edu/mp/article-abstract/35/1/94/2157/The-Repeated-Recording-IllusionThe-Effects-of).
+This study is a replication plus an additional manipulation of [Anglada-Tort & Müllensiefen 2017](https://online.ucpress.edu/mp/article-abstract/35/1/94/2157/The-Repeated-Recording-IllusionThe-Effects-of).
 
 For more info, please see our [OSF project](https://osf.io/gywj9/).
 
