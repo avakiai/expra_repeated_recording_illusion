@@ -32,9 +32,14 @@ p_rock_olm <- data_olm %>% filter(genre == "rock") %>%
   scale_x_discrete(name = "Explicit information condition", labels = c("low","high","none")) + 
   scale_y_continuous(name = "Proportion of liking ratings") + 
   labs(fill = "Liking rating") + 
-  theme_classic() 
+  theme_classic() +
+  ggtitle("Proportion of liking ratings for classical music") +
+  theme(text = element_text(size = 16),
+        axis.text = element_text(size = 14), 
+        title = element_text(face = "bold")) 
+
 p_rock_olm
-ggsave("rock_proportion_liking.png", plot = p_rock_olm, width = 7, height = 5, units = "in")
+ggsave("./../results/rock_proportion_liking.png", plot = p_rock_olm, width = 7, height = 5, units = "in")
 
 
 
